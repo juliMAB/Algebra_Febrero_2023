@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEditor;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using juli;
-using UnityEditor.SearchService;
-using System.ComponentModel;
 
 public class MyCamaraClass : MonoBehaviour
 {
@@ -13,16 +8,34 @@ public class MyCamaraClass : MonoBehaviour
 
     [SerializeField] private string layerToUse;
 
-    #endregion
-
-
-    //trate de hacer lo mas parecido a la configuracion de la camara.
     public float Near;
 
     public float Far;
 
     [Range(0.1f, 179f)] public float FieldOfView;
+    #endregion
 
+    #region PRIVATE_FIELDS
+
+    //lo que va a ser mi plano de adelante y el de atras.
+    private GameObject frontal;
+    private GameObject atras;
+
+    //el punto medio entre esos planos.
+    private Vec3 middle;
+
+    //los bordes de los plano frontal y atras.
+    private GameObject[] puntosFrontales = new GameObject[4];
+    private GameObject[] puntosAtras = new GameObject[4];
+
+    // los planos verdaderos que van a formar mi frustrum culling.
+    private MyPlane[] planos = new MyPlane[6];
+
+    private List<GameObject> SceneObjects = new List<GameObject>();
+
+    #endregion
+
+    #region UNITY_CALLS
     private void OnValidate()
     {
         if (Near < 0)
@@ -35,39 +48,7 @@ public class MyCamaraClass : MonoBehaviour
             Far = Near;
         }
     }
-    //lo que va a ser mi plano de adelante y el de atras.
-    private GameObject frontal;
-    private GameObject atras;
 
-    //el punto medio entre esos planos.
-    private Vec3 middle;
-
-
-
-
-    //los bordes de los plano frontal y atras.
-    private GameObject[] puntosFrontales = new GameObject[4];
-    private GameObject[] puntosAtras = new GameObject[4];
-
-    // los planos verdaderos que van a formar mi frustrum culling.
-    private MyPlane[] planos = new MyPlane[6];
-
-
-
-
-    //la lista donde solo voy a modificar aqueyos que pertenezcan a cierto layer.
-    private List<GameObject> gos = new List<GameObject>();
-
-
-
-
-    //mi prefab de punto (es solo una esfera para marcar los puntos y me resulte mas facil de vizualisar y hacer los planos de los costados).
-    [SerializeField] private GameObject punto;
-
-
-    
-
-    
     void Start()
     {
 
@@ -78,6 +59,21 @@ public class MyCamaraClass : MonoBehaviour
         SetObjectsTests();
     }
 
+    void Update()
+    {
+
+        DatosUpdate();
+
+        UpdatePlanes();
+
+        Inside();
+
+        SeePlanes();
+        
+    }
+    #endregion
+
+    #region PRIVATE_METHODS
     void SetInitialPlanes()
     {
         frontal = new GameObject("frontal");
@@ -95,8 +91,10 @@ public class MyCamaraClass : MonoBehaviour
         //aca le pongo nombre a cada punto para que no se me compique tanto la cosa y los instancio.
         for (int i = 0; i < 4; i++)
         {
-            puntosFrontales[i] = Instantiate(new GameObject("PF" + i), frontal.transform);
-            puntosAtras[i] = Instantiate(new GameObject("PA" + i), atras  .transform);
+            puntosFrontales[i] = new GameObject("PF" + i);
+            puntosFrontales[i].transform.parent = frontal.transform;
+            puntosAtras[i]     = new GameObject("PA" + i);
+            puntosAtras[i]    .transform.parent = atras.transform;
         }
         //aca los posiciono en los bordes de mis "planos".
         var localScale = frontal.transform.localScale;
@@ -127,28 +125,16 @@ public class MyCamaraClass : MonoBehaviour
         {
             if (t.layer == LayerMask.NameToLayer(layerToUse))
             {
-                gos.Add(t);
+                SceneObjects.Add(t);
             }
         }
-    }
-    void Update()
-    {
-
-        DatosUpdate();
-
-        UpdatePlanes();
-
-        Inside();
-
-        SeePlanes();
-        
     }
 
     void Inside()
     {
-        if (gos.Count != 0)
+        if (SceneObjects.Count != 0)
         {
-            foreach (var t in gos)
+            foreach (var t in SceneObjects)
             {
                 MeshRenderer meshRenderer = t.GetComponent<MeshRenderer>();
 
@@ -260,7 +246,7 @@ public class MyCamaraClass : MonoBehaviour
         Debug.DrawLine(corner3, corner0, Color.green);
         Debug.DrawRay(position, normal, Color.blue);
     }
-    private bool Pertenece(GameObject go)
+    bool Pertenece(GameObject go)
     {
         Mesh a = go.GetComponent<MeshFilter>().mesh;
         Vector3[] vertices;
@@ -272,7 +258,7 @@ public class MyCamaraClass : MonoBehaviour
         }
         return false;
     }
-    private bool Pertenece(Vec3 v3)
+    bool Pertenece(Vec3 v3)
     {
         bool bl = planos[0].GetSide(v3);
         for (int i = 1; i < planos.Length; i++)
@@ -285,4 +271,5 @@ public class MyCamaraClass : MonoBehaviour
 
         return true;
     }
+    #endregion
 }
