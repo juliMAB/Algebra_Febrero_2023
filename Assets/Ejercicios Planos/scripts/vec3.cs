@@ -1,9 +1,6 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using System;
-namespace juli
-
+namespace EjerciciosPlanos
 {
     public struct Vec3 : IEquatable<Vec3>
     {

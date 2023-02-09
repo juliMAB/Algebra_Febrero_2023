@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using juli;
+using EjerciciosPlanos;
 
 public class MyCamaraClass : MonoBehaviour
 {

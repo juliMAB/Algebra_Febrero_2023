@@ -1,6 +1,5 @@
-﻿using juli;
-
-namespace UnityEngine
+﻿
+namespace EjerciciosPlanos
 {
     public partial struct MyPlane   
     {
