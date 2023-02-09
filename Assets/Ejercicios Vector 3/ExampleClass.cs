@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using EjerciciosAlgebra;
+using EjerciciosVec3;
 
 public class ExampleClass : MonoBehaviour
 {
@@ -95,13 +96,15 @@ public class ExampleClass : MonoBehaviour
                 aux = 0;
                 break;
         }
+
         A = new Vector3(A1.x, A1.y, A1.z);
         B = new Vector3(B1.x, B1.y, B1.z);
-        C = new Vector3(C1.x, C1.y, C1.z); 
+        C = new Vector3(C1.x, C1.y, C1.z);
+
         Debug.DrawLine(Vector3.zero, A, Color.white);
         Debug.DrawLine(Vector3.zero, B, Color.black);
         Debug.DrawLine(Vector3.zero, C, VectorColor);
-        //Vector3Debugger.UpdatePosition("A1",A);
+
        VectorDebugger.UpdatePosition("A1", A);
        VectorDebugger.UpdatePosition("B1",B);
        VectorDebugger.UpdatePosition("C1", C);
