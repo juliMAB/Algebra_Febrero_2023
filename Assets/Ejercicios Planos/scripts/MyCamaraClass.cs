@@ -4,11 +4,17 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using juli;
-
+using UnityEditor.SearchService;
+using System.ComponentModel;
 
 public class MyCamaraClass : MonoBehaviour
 {
-    public string layerToHide;
+    #region EXPOSED_FIELDS
+
+    [SerializeField] private string layerToUse;
+
+    #endregion
+
 
     //trate de hacer lo mas parecido a la configuracion de la camara.
     public float Near;
@@ -17,7 +23,6 @@ public class MyCamaraClass : MonoBehaviour
 
     [Range(0.1f, 179f)] public float FieldOfView;
 
-    private bool view=true;
     private void OnValidate()
     {
         if (Near < 0)
@@ -50,8 +55,6 @@ public class MyCamaraClass : MonoBehaviour
 
 
 
-    //donde voy a cargar todos mis objetos en la escena.
-    private GameObject[] sceneGameObjects;
     //la lista donde solo voy a modificar aqueyos que pertenezcan a cierto layer.
     private List<GameObject> gos = new List<GameObject>();
 
@@ -62,64 +65,38 @@ public class MyCamaraClass : MonoBehaviour
     [SerializeField] private GameObject punto;
 
 
-
+    
 
     
     void Start()
     {
-        
-        //Creo los falsos planos de unity para vizualisar los planos principales.
-        frontal = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        atras = GameObject.CreatePrimitive(PrimitiveType.Plane);
 
-        //les pongo nombre porque sino es re complicado.
-        frontal.gameObject.name = "frontal";
-        atras.gameObject.name = "atras";
+        SetInitialPlanes();
 
+        SetPoints();
 
-
-        //no me interesa verlos de momento.
-        Destroy(atras.GetComponent<MeshRenderer>());
-        Destroy(frontal.GetComponent<MeshRenderer>());
-
-
-
-        //los hago todos hijos de esta camara.
-        var parent = this.transform;
-        frontal.transform.parent = parent;
-        atras.transform.parent = parent;
-
-        //seteo los puntos de los bordes antes de rotar mis planos.
-        StartPoints();
-
-
-
-        //manualmente roto los planos de unity para que apunten al centro, mas que nada es para vizualisar en el debug.
-        frontal.transform.rotation = Quaternion.Euler(90, 0, 0);
-        atras.transform.rotation = Quaternion.Euler(-90,0,0);
-
-
-        //agrego todos los objetos de mi escena a este arraid y despues los meto en una lista si tienen el Layer "TEST".
-        sceneGameObjects = GameObject.FindObjectsOfType<GameObject>();
-        foreach (var t in sceneGameObjects)
-        {
-            if (t.layer == LayerMask.NameToLayer(layerToHide))
-            {
-                gos.Add(t);
-            }
-        }
+        SetObjectsTests();
     }
-    void StartPoints()
+
+    void SetInitialPlanes()
+    {
+        frontal = new GameObject("frontal");
+        atras = new GameObject("atras");
+
+        frontal.transform.parent = this.transform;
+        atras.transform.parent = this.transform;
+
+        frontal.transform.eulerAngles = new Vector3(90,0,0);
+        atras.transform.eulerAngles = new Vector3(270,0,0);
+    }
+
+    void SetPoints()
     {
         //aca le pongo nombre a cada punto para que no se me compique tanto la cosa y los instancio.
-        for (int i = 0; i < puntosFrontales.Length; i++)
+        for (int i = 0; i < 4; i++)
         {
-            puntosFrontales[i] = Instantiate(punto, frontal.transform);
-            puntosFrontales[i].name = "PF" + i;
-            Destroy(puntosFrontales[i].GetComponent<MeshRenderer>());
-            puntosAtras[i] = Instantiate(punto, atras.transform);
-            puntosAtras[i].name = "PA" + i;
-            Destroy(puntosAtras[i].GetComponent<MeshRenderer>());
+            puntosFrontales[i] = Instantiate(new GameObject("PF" + i), frontal.transform);
+            puntosAtras[i] = Instantiate(new GameObject("PA" + i), atras  .transform);
         }
         //aca los posiciono en los bordes de mis "planos".
         var localScale = frontal.transform.localScale;
@@ -141,41 +118,52 @@ public class MyCamaraClass : MonoBehaviour
         puntosAtras[3].transform.localPosition = Vector3.zero - (new Vector3(0, 0, scale.y).normalized * 10 / 2);
         puntosAtras[3].transform.localPosition += (new Vector3(scale.x, 0, 0).normalized * 10 / 2);
     }
-    
-    // Update is called once per frame
+
+    void SetObjectsTests()
+    {
+        //agrego todos los objetos de mi escena a este arraid y despues los meto en una lista si tienen el Layer "TEST".
+        GameObject[] sceneGameObjects = GameObject.FindObjectsOfType<GameObject>();
+        foreach (var t in sceneGameObjects)
+        {
+            if (t.layer == LayerMask.NameToLayer(layerToUse))
+            {
+                gos.Add(t);
+            }
+        }
+    }
     void Update()
     {
 
         DatosUpdate();
+
         UpdatePlanes();
 
-        if (gos.Count!=0)
+        Inside();
+
+        SeePlanes();
+        
+    }
+
+    void Inside()
+    {
+        if (gos.Count != 0)
         {
             foreach (var t in gos)
             {
-                if (t.GetComponent<MeshRenderer>() != null)
+                MeshRenderer meshRenderer = t.GetComponent<MeshRenderer>();
+
+                if (meshRenderer != null)
                 {
                     if (Pertenece(t))
                     {
-                        t.GetComponent<MeshRenderer>().enabled = true;
+                        meshRenderer.enabled = true;
                     }
                     else
                     {
-                        t.GetComponent<MeshRenderer>().enabled = false;
+                        meshRenderer.enabled = false;
                     }
                 }
             }
-        }
-        
-        //Debug.DrawLine(frontal.transform.position,middle.transform.position);
-        if (Input.GetKeyDown(KeyCode.H))
-        {
-            view = !view;
-        }
-
-        if (view)
-        {
-            SeePlanes();
         }
     }
 
@@ -219,7 +207,6 @@ public class MyCamaraClass : MonoBehaviour
 
     void SeePlanes()
     {
-        //esto es para ver las lineas de mi "camara" osea los bordes y las normales de mi plano frontal y tracero.
         DrawPlane(planos[0].normal, frontal.transform.position);
         DrawPlane(planos[1].normal,atras.transform.position);
         Vector3 PA0 = puntosAtras[0].transform.position;
@@ -272,12 +259,6 @@ public class MyCamaraClass : MonoBehaviour
         Debug.DrawLine(corner2, corner3, Color.green);
         Debug.DrawLine(corner3, corner0, Color.green);
         Debug.DrawRay(position, normal, Color.blue);
-    }
-    private Vector3 centerRoom()
-    {
-        Vector3 punto = ((atras.transform.position - frontal.transform.position) / 2) + frontal.transform.position;
-        Debug.DrawLine(punto, punto + Vector3.down, Color.black);
-        return punto;
     }
     private bool Pertenece(GameObject go)
     {
