@@ -251,6 +251,12 @@ namespace EjerciciosVec3
         {
             return inNormal / Vec3.Magnitude(inNormal);
         }
+        public void Normalize()
+        {
+            x /= magnitude;
+            y /= magnitude;
+            z /= magnitude;
+        }
         public float Max(float x, float y, float z)
         {
             float max = x;
