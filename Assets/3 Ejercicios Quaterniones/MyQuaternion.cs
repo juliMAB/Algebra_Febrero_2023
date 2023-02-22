@@ -1,9 +1,11 @@
 using System;
+using System.Security.Principal;
 using EjerciciosVec3;
 using UnityEngine;
 
 namespace EjerciciosQuaternion
 {
+    [Serializable]
     public struct MyQuaternion : IEquatable<MyQuaternion>
     {
         #region Variables
@@ -16,10 +18,16 @@ namespace EjerciciosQuaternion
         public MyQuaternion normalized => Normalize(this);
         public Vec3 eulerAngles
         {
-            get => ToEulerRad(this) * Mathf.Rad2Deg;
+            get => ToEulerRad(this);
             set => this = Euler(value);
         }
-
+        public float LengthSquared
+        {
+            get
+            {
+                return x * x + y * y + z * z + w * w;
+            }
+        }
         public float this[int index]
         {
             get
@@ -225,22 +233,75 @@ namespace EjerciciosQuaternion
 
         public static MyQuaternion LerpUnclamped(MyQuaternion a, MyQuaternion b, float t)
         {
-            MyQuaternion q = Identity;
-            if (Dot(a, b) < 0)
+
+            // if either input is zero, return the other.
+            if (a.LengthSquared == 0.0f)
             {
-                q.x = a.x + t * (-b.x - a.x);
-                q.y = a.y + t * (-b.y - a.y);
-                q.z = a.z + t * (-b.z - a.z);
-                q.w = a.w + t * (-b.w - b.w);
+                if (b.LengthSquared == 0.0f)
+                {
+                    return Identity;
+                }
+                return b;
+            }
+            else if (b.LengthSquared == 0.0f)
+            {
+                return a;
+            }
+
+
+            float cosHalfAngle = a.w * b.w + Vec3.Dot(new Vec3 (a.x,a.y,a.z), new Vec3(b.x, b.y, b.z));
+
+            if (cosHalfAngle >= 1.0f || cosHalfAngle <= -1.0f)
+            {
+                // angle = 0.0f, so just return one input.
+                return a;
+            }
+            else if (cosHalfAngle < 0.0f)
+            {
+                b = MyQuaternion.Inverse(b);
+                b.w = -b.w;
+                cosHalfAngle = -cosHalfAngle;
+            }
+
+            float blendA;
+            float blendB;
+            if (cosHalfAngle < 0.99f)
+            {
+                // do proper slerp for big angles
+                float halfAngle = Mathf.Acos(cosHalfAngle);
+                float sinHalfAngle = Mathf.Sin(halfAngle);
+                float oneOverSinHalfAngle = 1.0f / sinHalfAngle;
+                blendA = Mathf.Sin(halfAngle * (1.0f - t)) * oneOverSinHalfAngle;
+                blendB = Mathf.Sin(halfAngle * t) * oneOverSinHalfAngle;
             }
             else
             {
-                q.x = a.x + t * (b.x - a.x);
-                q.y = a.y + t * (b.y - a.y);
-                q.z = a.z + t * (b.z - a.z);
-                q.w = a.w + t * (b.w - b.w);
+                // do lerp if angle is really small.
+                blendA = 1.0f - t;
+                blendB = t;
             }
-            return q.normalized;
+            Vec3 res = blendA * new Vec3(a.x, a.y, a.z) + blendB * new Vec3(b.x, b.y, b.z);
+            MyQuaternion result = new MyQuaternion(res.x,res.y,res.z, blendA * a.w + blendB * b.w);
+            if (result.LengthSquared > 0.0f)
+                return Normalize(result);
+            else
+                return Identity;
+            //MyQuaternion q = Identity;
+            //if (Dot(a, b) < 0)//find short path.
+            //{
+            //    q.x = a.x + t * (-b.x - a.x);
+            //    q.y = a.y + t * (-b.y - a.y);
+            //    q.z = a.z + t * (-b.z - a.z);
+            //    q.w = a.w + t * (-b.w - b.w);
+            //}
+            //else
+            //{
+            //    q.x = a.x + t * (b.x - a.x);
+            //    q.y = a.y + t * (b.y - a.y);
+            //    q.z = a.z + t * (b.z - a.z);
+            //    q.w = a.w + t * (b.w - b.w);
+            //}
+            //return q.normalized;
         }
 
         public static MyQuaternion Slerp(MyQuaternion a, MyQuaternion b, float t)
@@ -272,16 +333,24 @@ namespace EjerciciosQuaternion
                 return Lerp(a, b, t);
             }
         }
-
+        /// <summary>
+        ///   te va a devolver la rotacion que forme el producto cruz de los vectores por el angulo que formen.
+        /// </summary>
         public static MyQuaternion FromToRotation(Vec3 fromDirection, Vec3 toDirection)
         {
-            return RotateTowards(LookRotation(fromDirection), LookRotation(toDirection), float.MaxValue);
+            //va a girar sobre axis la cantidad de angle.
+            //axis va a ser el vector perpendicular a ambos vectores.
+            Vector3 axis = Vector3.Cross(fromDirection, toDirection);
+            float angle = Vector3.Angle(fromDirection, toDirection);
+            return AngleAxis(angle, axis.normalized);
         }
         public void SetFromToRotation(Vec3 fromDirection, Vec3 toDirection)
         {
             this = FromToRotation(fromDirection, toDirection);
         }
-
+        /// <summary>
+        ///   te va a devolver la rotacion que se requiere para pasar de de from a to
+        /// </summary>
         public static MyQuaternion RotateTowards(MyQuaternion from, MyQuaternion to, float maxDegreesDelta)
         {
             float t = Mathf.Min(1f, maxDegreesDelta / Angle(from, to));
@@ -369,7 +438,8 @@ namespace EjerciciosQuaternion
 
             float sinAngle = 0.0f;
             float cosAngle = 0.0f;
-
+            //se calcula el seno del angulo en la componente imaginalia.
+            //y el coseno del angulo en la componente real.
             sinAngle = Mathf.Sin(Mathf.Deg2Rad * y * 0.5f);
             cosAngle = Mathf.Cos(Mathf.Deg2Rad * y * 0.5f);
             qy.Set(0, sinAngle, 0, cosAngle);
@@ -381,7 +451,7 @@ namespace EjerciciosQuaternion
             sinAngle = Mathf.Sin(Mathf.Deg2Rad * z * 0.5f);
             cosAngle = Mathf.Cos(Mathf.Deg2Rad * z * 0.5f);
             qz.Set(0, 0, sinAngle, cosAngle);
-
+            //y se aplican las 3 rotaciones en este orden especifico.
             return qy * qx * qz;
         }
 
@@ -392,6 +462,7 @@ namespace EjerciciosQuaternion
 
         public static Vec3 ToEulerRad(MyQuaternion rotation)
         {
+            //Q/?a2+b2+c2+d2. //normalizar el quaternion.
             float sqw = rotation.w * rotation.w;
             float sqx = rotation.x * rotation.x;
             float sqy = rotation.y * rotation.y;
@@ -399,7 +470,7 @@ namespace EjerciciosQuaternion
             float unit = sqx + sqy + sqz + sqw;
             float test = rotation.x * rotation.w - rotation.y * rotation.z;
             Vec3 v;
-
+            // singularity north
             if (test > 0.4995f * unit)
             {
                 v.y = 2f * Mathf.Atan2(rotation.y, rotation.x);
@@ -407,6 +478,7 @@ namespace EjerciciosQuaternion
                 v.z = 0;
                 return NormalizeAngles(v * Mathf.Rad2Deg);
             }
+            // singularity south
             if (test < -0.4995f * unit)
             {
                 v.y = -2f * Mathf.Atan2(rotation.y, rotation.x);
@@ -414,13 +486,17 @@ namespace EjerciciosQuaternion
                 v.z = 0;
                 return NormalizeAngles(v * Mathf.Rad2Deg);
             }
+            //this is the formula.
+            //https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Euler_angles_to_quaternion_conversion
             MyQuaternion q = new MyQuaternion(rotation.w, rotation.z, rotation.x, rotation.y);
             v.y = Mathf.Atan2(2f * q.x * q.w + 2f * q.y * q.z, 1 - 2f * (q.z * q.z + q.w * q.w));
             v.x = Mathf.Asin(2f * (q.x * q.z - q.w * q.y));
             v.z = Mathf.Atan2(2f * q.x * q.y + 2f * q.z * q.w, 1 - 2f * (q.y * q.y + q.z * q.z));
             return NormalizeAngles(v * Mathf.Rad2Deg);
         }
-
+        /// <summary>
+        ///set the values ??between 360 and 0
+        /// </summary>
         private static Vec3 NormalizeAngles(Vec3 angles)
         {
             angles.x = NormalizeAngle(angles.x);
@@ -437,6 +513,13 @@ namespace EjerciciosQuaternion
             return angle;
         }
 
+        /// <summary>
+        /// Converts this quaternion to one with the same orientation but with a magnitude
+        /// of 1.
+        /// mag = Mathf.Sqrt(Dot(q, q));
+        /// </summary>
+        /// <param name="q"></param>
+        /// <returns></returns>
         public static MyQuaternion Normalize(MyQuaternion q)
         {
             float mag = Mathf.Sqrt(Dot(q, q));
@@ -485,7 +568,7 @@ namespace EjerciciosQuaternion
 
         public override string ToString()
         {
-            return $"({x:F1}, {y:F1}, {z:F1}, {w:F1})";
+            return $"({x}, {y}, {z}, {w})";
         }
 
         public string ToString(string format)

@@ -1,3 +1,4 @@
+using EjerciciosQuaternion;
 using System;
 using UnityEngine;
 namespace EjerciciosVec3
@@ -119,6 +120,9 @@ namespace EjerciciosVec3
         {
             return new Vector2(v2.x, v2.y);
         }
+
+        public static implicit operator Vec3(Vector3 q) => new Vec3(q.x, q.y, q.z);
+
         #endregion
 
         #region Functions
@@ -132,10 +136,10 @@ namespace EjerciciosVec3
             return Mathf.Rad2Deg * (float)(Mathf.Acos(Dot(from, to) / (Magnitude(from) * Magnitude(to))));
         }
 
-        public static explicit operator Vec3(Vector3 v)
-        {
-            return new Vec3(v.x, v.y, v.z);
-        }
+        //public static explicit operator Vec3(Vector3 v)
+        //{
+        //    return new Vec3(v.x, v.y, v.z);
+        //}
 
         public static Vec3 ClampMagnitude(Vec3 vector, float maxLength)
         {
