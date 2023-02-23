@@ -188,8 +188,14 @@ namespace EjerciciosQuaternion
         {
             float dot = Dot(a, b);
             return IsEqualUsingDot(dot) ? 0.0f : Mathf.Acos(Mathf.Min(Mathf.Abs(dot), 1.0F)) * 2.0F * Mathf.Rad2Deg;
+            //se hace el minimo entre el producto punto y 1 ya que el camino mas minimo es rotar 180 g. 
         }
-
+        /// <summary>
+        /// devuelve la cantidad de angulos angles alrededor del eje axis.
+        /// </summary>
+        /// <param name="angle"></param>
+        /// <param name="axis"></param>
+        /// <returns></returns>
         public static MyQuaternion AngleAxis(float angle, Vec3 axis)
         {
             if (axis.sqrMagnitude == 0.0f)
@@ -208,21 +214,22 @@ namespace EjerciciosQuaternion
             return Normalize(result);
         }
 
-        public void ToAngleAxis(out float angle, out Vec3 axis)
+        public void ToAxisAngle(out Vec3 axis, out float angle)
         {
-            angle = 0.0f;
-            axis = Vec3.Zero;
+            Normalize();
 
-            float radians = Mathf.Acos(w);
+            angle = 2.0f * Mathf.Acos(w);
 
-            axis.x = x;
-            axis.y = y;
-            axis.z = z;
-            axis = axis / Mathf.Sin(radians);
-            axis.Normalize();
+            float mag = Mathf.Sqrt(1.0f - w * w);
+            if (mag > 0.0001f)
+            {
+                axis = new Vec3(x, y, z) / mag;
+            }
+            else
+            {
+                axis = new Vec3(1, 0, 0);
+            }
 
-            radians /= 0.5f;
-            angle = radians * Mathf.Rad2Deg;
         }
 
         public static MyQuaternion Lerp(MyQuaternion a, MyQuaternion b, float t)
@@ -234,74 +241,27 @@ namespace EjerciciosQuaternion
         public static MyQuaternion LerpUnclamped(MyQuaternion a, MyQuaternion b, float t)
         {
 
-            // if either input is zero, return the other.
-            if (a.LengthSquared == 0.0f)
-            {
-                if (b.LengthSquared == 0.0f)
-                {
-                    return Identity;
-                }
-                return b;
-            }
-            else if (b.LengthSquared == 0.0f)
-            {
-                return a;
-            }
+            MyQuaternion result = Identity;
+
+            float timeLeft = 1f - t;
 
 
-            float cosHalfAngle = a.w * b.w + Vec3.Dot(new Vec3 (a.x,a.y,a.z), new Vec3(b.x, b.y, b.z));
 
-            if (cosHalfAngle >= 1.0f || cosHalfAngle <= -1.0f)
+            if (Dot(a, b) >= 0f)//find short path.
             {
-                // angle = 0.0f, so just return one input.
-                return a;
-            }
-            else if (cosHalfAngle < 0.0f)
-            {
-                b = MyQuaternion.Inverse(b);
-                b.w = -b.w;
-                cosHalfAngle = -cosHalfAngle;
-            }
-
-            float blendA;
-            float blendB;
-            if (cosHalfAngle < 0.99f)
-            {
-                // do proper slerp for big angles
-                float halfAngle = Mathf.Acos(cosHalfAngle);
-                float sinHalfAngle = Mathf.Sin(halfAngle);
-                float oneOverSinHalfAngle = 1.0f / sinHalfAngle;
-                blendA = Mathf.Sin(halfAngle * (1.0f - t)) * oneOverSinHalfAngle;
-                blendB = Mathf.Sin(halfAngle * t) * oneOverSinHalfAngle;
+                result.x = (timeLeft * a.x) + (t * b.x);
+                result.y = (timeLeft * a.y) + (t * b.y);
+                result.z = (timeLeft * a.z) + (t * b.z);
+                result.w = (timeLeft * a.w) + (t * b.w);
             }
             else
             {
-                // do lerp if angle is really small.
-                blendA = 1.0f - t;
-                blendB = t;
+                result.x = (timeLeft * a.x) - (t * b.x);
+                result.y = (timeLeft * a.y) - (t * b.y);
+                result.z = (timeLeft * a.z) - (t * b.z);
+                result.w = (timeLeft * a.w) - (t * b.w);
             }
-            Vec3 res = blendA * new Vec3(a.x, a.y, a.z) + blendB * new Vec3(b.x, b.y, b.z);
-            MyQuaternion result = new MyQuaternion(res.x,res.y,res.z, blendA * a.w + blendB * b.w);
-            if (result.LengthSquared > 0.0f)
-                return Normalize(result);
-            else
-                return Identity;
-            //MyQuaternion q = Identity;
-            //if (Dot(a, b) < 0)//find short path.
-            //{
-            //    q.x = a.x + t * (-b.x - a.x);
-            //    q.y = a.y + t * (-b.y - a.y);
-            //    q.z = a.z + t * (-b.z - a.z);
-            //    q.w = a.w + t * (-b.w - b.w);
-            //}
-            //else
-            //{
-            //    q.x = a.x + t * (b.x - a.x);
-            //    q.y = a.y + t * (b.y - a.y);
-            //    q.z = a.z + t * (b.z - a.z);
-            //    q.w = a.w + t * (b.w - b.w);
-            //}
-            //return q.normalized;
+            return result.normalized;
         }
 
         public static MyQuaternion Slerp(MyQuaternion a, MyQuaternion b, float t)
