@@ -13,7 +13,7 @@ public class MatrixDebugger : EditorWindow
 
     private void OnGUI()
     {
-        //target = EditorGUILayout.ObjectField(target, typeof(GameObject), true) as GameObject;
+        target = EditorGUILayout.ObjectField(target, typeof(GameObject), true) as GameObject;
         if (target != null)
         {
             target.transform.position = EditorGUILayout.Vector3Field("Position: ", target.transform.position);
