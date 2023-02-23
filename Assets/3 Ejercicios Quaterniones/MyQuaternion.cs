@@ -220,7 +220,7 @@ namespace EjerciciosQuaternion
 
             angle = 2.0f * Mathf.Acos(w);
 
-            float mag = Mathf.Sqrt(1.0f - w * w);
+            float mag = Mathf.Sqrt(1.0f - w * w); // para saber si la rotacion existe !0.
             if (mag > 0.0001f)
             {
                 axis = new Vec3(x, y, z) / mag;
